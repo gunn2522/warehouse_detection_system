@@ -1,0 +1,460 @@
+{##}
+{##}
+{#<!DOCTYPE html>#}
+{#<html>#}
+{#<head>#}
+{#    <title>Live Dashboard</title>#}
+{#    <meta charset="UTF-8">#}
+{#    <meta name="viewport" content="width=device-width, initial-scale=1">#}
+{##}
+{#    <!-- Styling (Bootstrap & Custom) -->#}
+{#    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">#}
+{#    <style>#}
+{#        body {#}
+{#            background-color: #0F0F1C;#}
+{#            color: #EDEDED;#}
+{#            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;#}
+{#        }#}
+{##}
+{#        .title {#}
+{#            color: #FFB84D;#}
+{#            font-weight: 600;#}
+{#        }#}
+{##}
+{#        .card {#}
+{#            background-color: #1C1C2D;#}
+{#            border: none;#}
+{#            border-radius: 10px;#}
+{#            padding: 20px;#}
+{#            box-shadow: 0 4px 12px rgba(0,0,0,0.3);#}
+{#        }#}
+{##}
+{#        .video-container {#}
+{#            border: 3px solid #FFB84D;#}
+{#            border-radius: 10px;#}
+{#            overflow: hidden;#}
+{#            margin-bottom: 30px;#}
+{#        }#}
+{##}
+{#        .btn-warning {#}
+{#            background-color: #FFB84D;#}
+{#            border-color: #FFB84D;#}
+{#            color: #1C1C2D;#}
+{#            font-weight: 500;#}
+{#        }#}
+{##}
+{#        .btn-warning:hover {#}
+{#            background-color: #e6a23f;#}
+{#            border-color: #e6a23f;#}
+{#        }#}
+{##}
+{#        .section-heading {#}
+{#            font-size: 1.25rem;#}
+{#            margin-bottom: 1rem;#}
+{#            border-bottom: 1px solid #333;#}
+{#            padding-bottom: 0.5rem;#}
+{#            color: #FFB84D;#}
+{#        }#}
+{##}
+{#        a.btn {#}
+{#            margin-top: 10px;#}
+{#        }#}
+{#    </style>#}
+{#</head>#}
+{#<body>#}
+{##}
+{#<div class="container mt-4">#}
+{#    <h2 class="text-center title mb-4">📊 Cylinder & Truck Monitoring Dashboard</h2>#}
+{##}
+{#    <!-- Live Video Feed -->#}
+{#    <div class="video-container">#}
+{#        <img src="{% url 'video_feed' %}" width="100%" id="video" alt="Live Feed">#}
+{#    </div>#}
+{##}
+{#    <!-- Detection and Summary Blocks -->#}
+{#    <div class="row">#}
+{#        <!-- Live Detection -->#}
+{#        <div class="col-md-6 mb-4">#}
+{#            <div class="card">#}
+{#                <div class="section-heading">📡 Live Detection</div>#}
+{#                <p><strong>Truck Type:</strong> <span id="truck_type">Loading...</span></p>#}
+{#                <p><strong>Cylinders Detected:</strong> <span id="cylinder_count">Loading...</span></p>#}
+{#                <p><strong>Last Updated:</strong> <span id="last_updated">-</span></p>#}
+{#            </div>#}
+{#        </div>#}
+{##}
+{#        <!-- Daily Summary -->#}
+{#        <div class="col-md-6 mb-4">#}
+{#            <div class="card">#}
+{#                <div class="section-heading">📅 Daily Summary</div>#}
+{#                <p>Total Trucks Today: {{ total_trucks }}</p>#}
+{#                <p>Total Loaded Cylinders: {{ total_loaded }}</p>#}
+{#                <p>Total Unloaded Cylinders: {{ total_unloaded }}</p>#}
+{#                <p>🧮 Current Stock: {{ total_stock }}</p>#}
+{#                <a class="btn btn-warning" href="{% url 'export_truck_logs' %}">⬇️ Download Truck Logs (CSV)</a>#}
+{#            </div>#}
+{#        </div>#}
+{#    </div>#}
+{#</div>#}
+{##}
+{#<!-- JavaScript for live detection -->#}
+{#<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>#}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cylinder & Truck Monitoring Dashboard</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f8fa;
+      --card-bg: #fff;
+      --border: #e4e8ed;
+      --accent: #ffa21f;
+      --text-main: #23272f;
+      --text-muted: #8d99ae;
+      --gray-soft: #f1f3f9;
+      --radius-lg: 22px;
+      --radius-md: 12px;
+      --shadow: 0 2px 24px 0 rgba(210, 220, 230, 0.13);
+      --gradient: linear-gradient(110deg, #fdfbfb 0%, #ebedee 100%);
+    }
+
+    html, body {
+      font-family: 'Roboto', Arial, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text-main);
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    body {
+      padding: 0;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 1.3rem;
+    }
+
+    header {
+      width: 100%;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      background: var(--gradient);
+      text-align: center;
+      padding: 2.2rem 1.2rem 1.3rem 1.2rem;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      box-shadow: 0 2px 20px 0 rgba(230,200,130,0.03);
+    }
+
+    .top-banner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logo-space {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: var(--gray-soft);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.4rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+      border: 2px solid var(--border);
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin: 0.4rem 0 0.5rem 0;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1.15rem;
+      margin-bottom: 0.7rem;
+      font-weight: 400;
+      max-width: 540px;
+    }
+
+    main {
+      margin-top: 2.5rem;
+      display: flex;
+      gap: 2.6rem;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    .video-section {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 1.6rem 1.4rem 2rem 1.4rem;
+      flex: 1 1 500px;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      min-width: 350px;
+      max-width: 630px;
+    }
+
+    .video-title-row {
+      display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.1rem;
+    }
+
+    .camera-icon {
+      background: var(--gray-soft);
+      border-radius: 13px;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; color: var(--accent);
+      border: 1px solid var(--border);
+    }
+
+    .video-container {
+      border: 3px solid var(--accent);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fcfcfd;
+      width: 100%; aspect-ratio: 16/9;
+      margin-bottom: 1.2rem;
+      position: relative;
+    }
+
+    .grid-focus {
+      position: absolute;
+      left: 50%; top: 41%; transform: translate(-50%,-50%);
+      width: 58%; height: 49%;
+      border: 2px dashed #ffa21f75;
+      border-radius: 17px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .ai-label {
+      display: inline-flex;
+      gap: 0.3rem;
+      align-items: center;
+      background: #fff1e0;
+      color: var(--accent);
+      font-size: 0.98rem;
+      border-radius: 12px;
+      padding: 0.25rem 0.7rem;
+      margin-top: 0.4rem;
+      box-shadow: 0 2px 7px 0 rgba(240,170,40,0.06);
+    }
+
+    .side-cards {
+      flex: 1 1 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.7rem;
+      min-width: 300px;
+      max-width: 390px;
+    }
+
+    .card {
+      border-radius: var(--radius-md);
+      background: var(--card-bg);
+      padding: 1.7rem 1.25rem 1.25rem 1.25rem;
+      box-shadow: var(--shadow);
+      border: none;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card h4 {
+      font-size: 1.12rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 0.55rem;
+      align-items: center;
+    }
+
+    .icon-placeholder {
+      width: 28px; height: 28px;
+      font-size: 1.15rem;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--gray-soft); color: var(--accent);
+      margin-right: 0.35rem;
+      border: 1px solid var(--border);
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 0.6rem 1.3rem;
+      border-radius: 14px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 500;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: box-shadow .18s;
+      margin-top: 0.9rem;
+      box-shadow: 0 1px 2px 0 #ffdca380;
+    }
+
+    .btn:active,
+    .btn:focus {
+      box-shadow: 0 4px 16px 0 #ffdca3a0;
+    }
+
+    .how-section {
+      width: 100%;
+      margin-top: 2.5rem;
+      margin-bottom: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .how-title {
+      font-weight: 700;
+      font-size: 1.3rem;
+      margin-bottom: 1.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .how-steps {
+      display: flex; gap: 2.4rem; flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .how-step {
+      min-width: 160px; max-width: 240px;
+      background: #f7f8fb;
+      border-radius: 13px;
+      box-shadow: 0 1px 7px 0 #e4ebf180;
+      text-align: center;
+      padding: 1.15rem 1.1rem 1.1rem 1.1rem;
+      display: flex; flex-direction: column; align-items: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .how-icon {
+      width: 44px; height: 44px;
+      background: var(--gray-soft);
+      color: var(--accent);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 0.6rem;
+      border: 1px solid var(--border);
+    }
+
+    .photo-placeholder {
+      width: 80px; height: 48px; margin: 0.6rem auto;
+      background: #e5e7eb;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      color: #b3b8bc;
+      font-size: 1.2rem;
+      border: 1px dashed #d8dbe1;
+    }
+
+    @media (max-width: 980px) {
+      main { flex-direction: column; gap: 1.5rem; }
+      .side-cards, .video-section { max-width: 100%; }
+    }
+
+    @media (max-width: 620px) {
+      .card, .video-section { padding: 1rem 0.7rem; }
+      .how-steps { gap: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="top-banner">
+      <img src="{% static 'images/celender.png' %}" alt="Celender Image" style="width:105%; margin-bottom:10mm;" aria-label="Banner/Project image">
+    </div>
+  </header>
+  <div class="container">
+    <main>
+      <section class="video-section">
+        <div class="video-title-row">
+          <span class="camera-icon" aria-label="Detection camera">📷</span>
+          <span style="font-weight:600;font-size:1.09rem;">Live Detection Feed</span>
+          <span class="ai-label"><span>Roboflow</span> <span style="font-size:1.1rem;"></span></span>
+        </div>
+        <div class="video-container" aria-label="Live video feed">
+          <img src="{% url 'video_feed' %}" width="100%" id="video" alt="Live Feed" style="display:block;">
+          <div class="grid-focus" aria-label="AI focus grid"></div>
+        </div>
+        <img src="{% static 'images/model.png' %}"  alt="Detection image" style="margin:0.8rem auto 0 auto; width:120px; height:100px; display:block; border-radius:11px; border:1px dashed #d8dbe1;" aria-label="Detection image">
+      </section>
+
+      <section class="side-cards">
+        <div class="card">
+          <h4><span class="icon-placeholder" aria-label="AI icon">📡</span> Live Detection</h4>
+          <p><strong>Truck Type:</strong> <span id="truck_type">Loading...</span></p>
+          <p><strong>Cylinders Detected:</strong> <span id="cylinder_count">Loading...</span></p>
+          <p><strong>Last Updated:</strong> <span id="last_updated">-</span></p>
+        </div>
+        <div class="card">
+          <h4><span class="icon-placeholder" aria-label="calendar/statistics icon">📅</span> Daily Summary</h4>
+          <p>Total Trucks Today: {{ total_trucks }}</p>
+          <p>Total Loaded Cylinders: {{ total_loaded }}</p>
+          <p>Total Unloaded Cylinders: {{ total_unloaded }}</p>
+          <p>🧮 Current Stock: {{ total_stock }}</p>
+          <a class="btn" href="{% url 'export_truck_logs' %}">⬇ Download Truck Logs (CSV)</a>
+        </div>
+      </section>
+    </main>
+
+    <section class="how-section">
+      <div class="how-title"><span class="icon-placeholder">🔍</span> How the Detection Works</div>
+      <div class="how-steps">
+        <div class="how-step">
+          <img src="{% static 'images/withoutdetect.png' %}"  alt="Camera stream image" style="margin:0.8rem auto 0 auto; width:112px; height:80px; display:block; border-radius:40px; border:1px dashed #d8dbe1;">
+          <div><b>Step 1:</b> Camera streams video from your site.</div>
+        </div>
+        <div class="how-step">
+          <img src="{% static 'images/model.png' %}"  alt="Model Image" style="margin:0.6rem auto 0 auto; width:112px; height:80px; display:block; border-radius:40px; border:1px dashed #d8dbe1;">
+          <div style="margin-top: 0.5rem; font-weight: 500;">🧠 Model</div>
+          <div><b>Step 2:</b> Roboflow AI analyzes each frame and detects trucks/cylinders in real-time.</div>
+        </div>
+        <div class="how-step">
+          <img src="{% static 'images/detect.jpg' %}"  alt="Detection image" style="margin:0.6rem auto 0 auto; width:112px; height:80px; display:block; border-radius:40px; border:1px dashed #d8dbe1;">
+          <div style="margin-top: 0.5rem; font-weight: 500;">🎯 Detect</div>
+          <div><b>Step 3:</b> Detection stats appear on dashboard and are available for export.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Live detection updates -->
+  <script>
+    function fetchLiveData() {
+      fetch("{% url 'video_feed' %}")
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById("truck_type").textContent = data.truck_type || "N/A";
+          document.getElementById("cylinder_count").textContent = data.cylinder_count ?? "0";
+          document.getElementById("last_updated").textContent = new Date().toLocaleTimeString();
+        })
+        .catch(error => {
+          console.error("Error fetching live data:", error);
+          document.getElementById("truck_type").textContent = "Error";
+          document.getElementById("cylinder_count").textContent = "Error";
+        });
+    }
+
+    setInterval(fetchLiveData, 2000);  // every 2 seconds
+    fetchLiveData();  // initial call
+  </script>
+</body>
+</html>
